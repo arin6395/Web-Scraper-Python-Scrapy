@@ -14,11 +14,19 @@ import pandas as pd
 covered_URLS=set()
 open('datatea.txt', 'w').close()
 
+inputs=pd.read_csv('input.csv')
+print(inputs.head(5))
+inputs.columns = [c.replace(' ', '_') for c in inputs.columns]
 
-
-baseURL='https://www.nissan.co.uk/'
+baseURL=inputs.Starting_URL[0]
 regex=baseURL+".+"
-domain="www.nissan.co.uk"
+domain=inputs.Domain[0]
+DTM_Css_Handle=inputs.DTM_CSS_handle[0]
+
+if baseURL=="list":
+    pages=inputs.Starting_URL.tolist()
+pages.remove('list')
+print(pages)
 
 
 class mySpider(scrapy.Spider):
@@ -33,19 +41,21 @@ class mySpider(scrapy.Spider):
     def parse(self, response):
 
         URL_SELECTOR = '::attr(href)'
-        DTM_SELETOR = 'script[src^="//assets.adobedtm.com/"]'
+        DTM_SELETOR = DTM_Css_Handle
 
 
         if response.css(DTM_SELETOR).extract_first():
-            yield{
-                'URL': response.url,
-                'DTMheader': response.css(DTM_SELETOR).extract_first()
-            }
+        	URL=response.url
+        	DTMheader=response.css(DTM_SELETOR).extract_first()
         else:
-            yield{
-                'URL': response.request.url,
-                'DTMheader': "none found"
-            }
+        	URL=response.request.url
+        	DTMheader="none found"
+
+        yield{
+            'URL': URL,
+            'DTMheader': DTMheader
+        }
+       
 
         for next_page in response.css('a ::attr(href)').extract():
             next_page=next_page.split("?")[0]
@@ -54,6 +64,30 @@ class mySpider(scrapy.Spider):
                 next_page = response.urljoin(next_page)
                 yield scrapy.Request(url=next_page, callback=self.parse)
 
+class listSpider(scrapy.Spider):
+    name = "listSpider"
+    
+    start_urls=pages
+    allowed_domains=[domain]
+    rules = [
+        Rule(LinkExtractor(allow=[regex]), callback='parse', follow=True),
+    ] 
+
+    def parse(self, response):
+            DTM_SELETOR = DTM_Css_Handle
+            if response.css(DTM_SELETOR).extract_first():
+                URL=response.url
+                DTMheader=response.css(DTM_SELETOR).extract_first()
+            else:
+                URL=response.request.url
+                DTMheader="none found"
+
+            yield{
+                'URL': URL,
+                'DTMheader': DTMheader
+            }
+            
+
 
 process = CrawlerProcess({
     'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)',
@@ -61,7 +95,11 @@ process = CrawlerProcess({
     'FEED_URI': 'datatea.txt'
 })
 
-process.crawl(mySpider)
+if baseURL!="list":
+    process.crawl(mySpider)
+else:
+    process.crawl(listSpider)
+
 process.start() # the script will block here until the crawling is finished
 
 data=[]
@@ -80,19 +118,20 @@ for x in data:
 
 print(pages_without_script)
 df_noscript=pd.DataFrame(pages_without_script)
-df_noscript.to_csv('Pages without DTM Script.csv')
+df_noscript.to_csv('URLs without DTM Script.csv')
 pages_crawled_scripts={
 	'URL':pages_crawled,
 	'DTM Script': DTM_scripts
 }
 df_crawled=pd.DataFrame(pages_crawled_scripts,columns= ['URL', 'DTM Script'])
-df_crawled.to_csv('All Pages and Scripts.csv')
+df_crawled.to_csv('All URLs and Scripts.csv')
 
+'''
 a=[0]*100
 k=0
-a[k]=Node("www.nissan.co.uk")
+a[k]=Node(domain)
 nodeDict={
-	"www.nissan.co.uk":0
+	domain:0
 	}
 k=k+1
 for x in covered_URLS:
@@ -126,5 +165,6 @@ from graphviz import render
 render('dot', 'png', 'udo.dot') 
 
 
-DotExporter(a[0]).to_picture("udo.png")
+DotExporter(a[0]).to_picture("Sitemap.png")
 
+'''

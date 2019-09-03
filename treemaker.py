@@ -3,9 +3,9 @@ from anytree.exporter import DotExporter
 
 a=[0]*100
 k=0
-a[k]=Node("www.nissan.co.uk")
+a[k]=Node(domain)
 nodeDict={
-	"www.nissan.co.uk":0
+	domain:0
 	}
 k=k+1
 for x in covered_URLS:
@@ -39,4 +39,4 @@ from graphviz import render
 render('dot', 'png', 'udo.dot') 
 
 
-DotExporter(a[0]).to_picture("udo.png")
+DotExporter(a[0]).to_picture("Sitemap.png")
